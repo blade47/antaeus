@@ -17,7 +17,7 @@ Please let us know how long the challenge takes you. We're not looking for how s
 ## Developing
 
 Requirements:
-- \>= Java 11 environment
+- \>= Java 11 environment (dependency error using Java 18, working properly with Java 11)
 
 Open the project using your favorite text editor. If you are using IntelliJ, you can open the `build.gradle.kts` file and it is gonna setup the project in the IDE for you.
 
@@ -46,8 +46,8 @@ If you use homebrew on MacOS `brew install sqlite`.
 Install docker for your platform
 
 ```
-docker build -t antaeus
-docker run antaeus
+docker build -t antaeus .
+docker run -p 7000:7000 antaeus
 ```
 
 ### App Structure
