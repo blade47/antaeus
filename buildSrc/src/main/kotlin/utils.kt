@@ -34,5 +34,6 @@ fun Project.dataLibs() {
     dependencies {
         "implementation"("org.jetbrains.exposed:exposed:0.17.7")
         "implementation"("org.xerial:sqlite-jdbc:3.30.1")
+        "testImplementation"("com.h2database:h2:1.4.200")
     }
 }

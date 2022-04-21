@@ -7,27 +7,26 @@
 
 package io.pleo.antaeus.app
 
-import getPaymentProvider
-import io.pleo.antaeus.core.services.BillingService
-import io.pleo.antaeus.core.services.CustomerService
-import io.pleo.antaeus.core.services.InvoiceService
-import io.pleo.antaeus.data.AntaeusDal
-import io.pleo.antaeus.data.CustomerTable
-import io.pleo.antaeus.data.InvoiceTable
+import io.pleo.antaeus.core.services.*
+import io.pleo.antaeus.data.*
+import io.pleo.antaeus.models.Invoice
+import io.pleo.antaeus.models.Plan
 import io.pleo.antaeus.rest.AntaeusRest
+import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
-import setupInitialData
 import java.io.File
 import java.sql.Connection
 
+private val logger = KotlinLogging.logger {}
+
 fun main() {
     // The tables to create in the database.
-    val tables = arrayOf(InvoiceTable, CustomerTable)
+    val tables = arrayOf(InvoiceTable, CustomerTable, PlanTable, SubscriptionTable)
 
     val dbFile: File = File.createTempFile("antaeus-db", ".sqlite")
     // Connect to the database and create the needed tables. Drop any existing data.
@@ -48,24 +47,41 @@ fun main() {
         }
 
     // Set up data access layer.
-    val dal = AntaeusDal(db = db)
+    val invoiceDal = InvoiceDal(db = db)
+    val planDal = PlanDal(db = db)
+    val subscriptionDal = SubscriptionDal(db = db)
+    val customerDal = CustomerDal(db = db)
 
     // Insert example data in the database.
-    setupInitialData(dal = dal)
+    setupInitialData(invoiceDal, planDal, customerDal)
 
     // Get third parties
     val paymentProvider = getPaymentProvider()
+    val currencyProvider = getCurrencyProvider()
 
     // Create core services
-    val invoiceService = InvoiceService(dal = dal)
-    val customerService = CustomerService(dal = dal)
+    val invoiceService = InvoiceService(dal = invoiceDal)
+    val customerService = CustomerService(dal = customerDal)
+    val subscriptionService = SubscriptionService(dal = subscriptionDal)
+    val planService = PlanService(dal = planDal)
 
-    // This is _your_ billing service to be included where you see fit
-    val billingService = BillingService(paymentProvider = paymentProvider)
+    try {
+        // Run as a background task to update daily the subscription table and charge users
+        val billingService = BillingService(
+                paymentProvider = paymentProvider,
+                currencyProvider = currencyProvider,
+                customerService = customerService,
+                invoiceService = invoiceService,
+                subscriptionService = subscriptionService,
+                planService = planService
+        )
+    } catch(e: Exception) {
+        logger.error(e) { "Error during the execution of the billing service: $e "}
+    }
 
     // Create REST web service
     AntaeusRest(
-        invoiceService = invoiceService,
-        customerService = customerService
+            invoiceService = invoiceService,
+            customerService = customerService
     ).run()
 }
