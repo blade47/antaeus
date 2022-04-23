@@ -9,8 +9,6 @@ package io.pleo.antaeus.app
 
 import io.pleo.antaeus.core.services.*
 import io.pleo.antaeus.data.*
-import io.pleo.antaeus.models.Invoice
-import io.pleo.antaeus.models.Plan
 import io.pleo.antaeus.rest.AntaeusRest
 import mu.KotlinLogging
 import org.jetbrains.exposed.sql.Database

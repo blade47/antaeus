@@ -1,6 +1,7 @@
 package io.pleo.antaeus.data
 
 import io.pleo.antaeus.models.Customer
+import io.pleo.antaeus.models.Invoice
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -31,10 +32,6 @@ class CustomerDal(db: Database) : AntaeusDal<Customer>(db) {
                     .firstOrNull()
                     ?.toCustomer()
         }
-    }
-
-    override fun fetchBy(field: String): Customer? {
-        TODO("Not yet implemented")
     }
 
     override fun fetchAll(): List<Customer> {

@@ -1,5 +1,6 @@
 package io.pleo.antaeus.data
 
+import io.pleo.antaeus.models.Customer
 import io.pleo.antaeus.models.Invoice
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -13,7 +14,7 @@ class InvoiceDal(db: Database) : AntaeusDal<Invoice>(db) {
                     .insert {
                         it[this.value] = entity.amount.value
                         it[this.currency] = entity.amount.currency.toString()
-                        it[this.status] = status.toString()
+                        it[this.status] = entity.status.toString()
                         it[this.customerId] = entity.customerId
                     } get InvoiceTable.id
         }
@@ -28,10 +29,9 @@ class InvoiceDal(db: Database) : AntaeusDal<Invoice>(db) {
                     .update ({ InvoiceTable.id.eq(entity.id) }) {
                         it[this.value] = entity.amount.value
                         it[this.currency] = entity.amount.currency.toString()
-                        it[this.status] = status.toString()
+                        it[this.status] = entity.status.toString()
                     }
         }
-
         return numRowsUpdated
     }
 
@@ -44,10 +44,6 @@ class InvoiceDal(db: Database) : AntaeusDal<Invoice>(db) {
                     .firstOrNull()
                     ?.toInvoice()
         }
-    }
-
-    override fun fetchBy(field: String): Invoice? {
-        TODO("Not yet implemented")
     }
 
     override fun fetchAll(): List<Invoice> {

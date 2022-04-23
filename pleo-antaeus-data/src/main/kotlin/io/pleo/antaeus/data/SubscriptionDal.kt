@@ -48,10 +48,6 @@ class SubscriptionDal(db: Database) : AntaeusDal<Subscription>(db) {
         }
     }
 
-    override fun fetchBy(field: String): Subscription? {
-        TODO("Not yet implemented")
-    }
-
     override fun fetchAll(): List<Subscription> {
         return transaction(db) {
             SubscriptionTable

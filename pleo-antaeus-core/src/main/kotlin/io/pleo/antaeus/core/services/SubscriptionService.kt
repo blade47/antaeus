@@ -26,7 +26,7 @@ class SubscriptionService(private val dal: SubscriptionDal) {
     }
 
     fun subscribe(customer: Customer, to: Plan): Subscription {
-        val latestInvoice = this.getLatestInvoice(customer)
+        val latestInvoice: Invoice? = this.getLatestInvoice(customer)
         return dal.create( Subscription(
                 customerId = customer.id,
                 planId = to.id,
@@ -35,7 +35,7 @@ class SubscriptionService(private val dal: SubscriptionDal) {
                 currentPeriodStarts = LocalDate.now(),
                 currentPeriodEnds = LocalDate.now().plusDays(this.invoiceIntervalDefault.days),
                 pendingInvoiceInterval = this.invoiceIntervalDefault,
-                latestInvoiceId = latestInvoice.id)
+                latestInvoiceId = latestInvoice?.id)
         ) ?: run {
             logger.error { "Failed to subscribe customer ${customer.id} to ${to.id}" }
             throw DBConnectionException()
@@ -50,10 +50,9 @@ class SubscriptionService(private val dal: SubscriptionDal) {
         return true
     }
 
-    private fun getLatestInvoice(customer: Customer) : Invoice {
-        // TODO: 21/04/22
-        // this.dal.getCustomerInvoices()
-        return Invoice(2,2, Money(BigDecimal(2), Currency.SEK) ,InvoiceStatus.PENDING)
-
+    private fun getLatestInvoice(of: Customer) : Invoice? {
+        val invoices = this.dal.getInvoices(of)
+        invoices.forEach { invoice -> if (invoice.status == InvoiceStatus.PENDING) return invoice }
+        return null
     }
 }

@@ -42,7 +42,7 @@ fun ResultRow.toSubscription(): Subscription = Subscription(
     currentPeriodStarts = LocalDate.parse(this[SubscriptionTable.currentPeriodStarts]),
     currentPeriodEnds = LocalDate.parse(this[SubscriptionTable.currentPeriodEnds]),
     created = LocalDate.parse(this[SubscriptionTable.created]),
-    canceledAt = LocalDate.parse(this[SubscriptionTable.canceledAt]),
+    canceledAt = this[SubscriptionTable.canceledAt]?.let { s -> LocalDate.parse(s) },
     pendingInvoiceInterval = InvoiceInterval.valueOf(this[SubscriptionTable.pendingInvoiceInterval]),
     latestInvoiceId = this[SubscriptionTable.latestInvoiceId]
 )

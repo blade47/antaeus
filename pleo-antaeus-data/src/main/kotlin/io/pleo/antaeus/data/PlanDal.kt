@@ -34,7 +34,7 @@ class PlanDal(db: Database) : AntaeusDal<Plan>(db) {
         }
     }
 
-    override fun fetchBy(field: String): Plan? {
+    fun fetchByDescription(field: String): Plan? {
         return transaction(db) {
             PlanTable
                     .select { PlanTable.description.eq(field) }

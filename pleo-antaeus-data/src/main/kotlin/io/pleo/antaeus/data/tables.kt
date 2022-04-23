@@ -38,7 +38,7 @@ object SubscriptionTable : Table() {
     val currentPeriodStarts = varchar("current_period_starts", 50)
     val currentPeriodEnds = varchar("current_period_ends", 50)
     val created = varchar("created", 50)
-    val canceledAt = varchar("canceled_at", 50)
+    val canceledAt = varchar("canceled_at", 50).nullable()
     val pendingInvoiceInterval = text("pending_invoice_interval")
-    val latestInvoiceId = reference("invoice_id", InvoiceTable.id)
+    val latestInvoiceId = reference("invoice_id", InvoiceTable.id).nullable()
 }
