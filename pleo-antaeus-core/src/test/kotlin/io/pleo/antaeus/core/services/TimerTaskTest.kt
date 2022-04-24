@@ -1,6 +1,6 @@
 package io.pleo.antaeus.core.services
 
-import io.pleo.antaeus.core.services.task.SubscriptionTimerTask
+import io.pleo.antaeus.core.services.task.TimerTask
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
@@ -9,11 +9,11 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class SubscriptionTimerTaskTest() {
+class TimerTaskTest() {
     @Test
     fun `Basic operation`() {
         var times = 0
-        val timer = SubscriptionTimerTask.start("test", repeat = 100.milliseconds) {
+        val timer = TimerTask.start("test", repeat = 100.milliseconds) {
             times++
         }
         Thread.sleep(1_000)
@@ -25,7 +25,7 @@ class SubscriptionTimerTaskTest() {
 
     @Test
     fun `cancel during task run`() {
-        val timer = SubscriptionTimerTask.start("test", repeat = 100.milliseconds) {
+        val timer = TimerTask.start("test", repeat = 100.milliseconds) {
             println("Task running...")
         }
         Thread.sleep(1_000)
@@ -37,7 +37,7 @@ class SubscriptionTimerTaskTest() {
     @Test
     fun `shutdown and restart task`() {
         var times = 0
-        val task = SubscriptionTimerTask.start("test", repeat = 100.milliseconds) {
+        val task = TimerTask.start("test", repeat = 100.milliseconds) {
             times++
         }
         Thread.sleep(1_000)
@@ -57,7 +57,7 @@ class SubscriptionTimerTaskTest() {
     fun `delay between calls`() {
         val deltas = mutableListOf<Duration>()
         var startedAt: Long? = null
-        val task = SubscriptionTimerTask.start("test", repeat = 2000.milliseconds) {
+        val task = TimerTask.start("test", repeat = 2000.milliseconds) {
             val newStarting = System.currentTimeMillis()
             startedAt?.let {
                 val delta = newStarting - it
@@ -81,7 +81,7 @@ class SubscriptionTimerTaskTest() {
     fun `delay between calls with internal function heavier than repeating time`() {
         val deltas = mutableListOf<Duration>()
         var startedAt: Long? = null
-        val task = SubscriptionTimerTask.start("test", repeat = 1000.milliseconds) {
+        val task = TimerTask.start("test", repeat = 1000.milliseconds) {
             val newStarting = System.currentTimeMillis()
             startedAt?.let {
                 val delta = newStarting - it

@@ -1,25 +1,26 @@
 package io.pleo.antaeus.core.services.task
 
 import kotlinx.coroutines.*
+import mu.KotlinLogging
 import kotlin.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class SubscriptionTimerTask internal constructor(
+class TimerTask internal constructor(
         name: String,
         private val delay: Duration = Duration.ZERO,
         private val repeat: Duration? = null,
         action: suspend () -> Unit
 ) {
+    private val logger = KotlinLogging.logger {}
     private val keepRunning = AtomicBoolean(true)
     private var job: Job? = null
     private val tryAction = suspend {
         try {
             action()
         } catch (e: Throwable) {
-//            log.warn("$name timer action failed: $action")
+            logger.warn { "$name timer action failed: $action" }
         }
     }
 
@@ -78,7 +79,7 @@ class SubscriptionTimerTask internal constructor(
                 delay: Duration = Duration.ZERO,
                 repeat: Duration? = null,
                 action: suspend () -> Unit
-        ): SubscriptionTimerTask =
-                SubscriptionTimerTask(name, delay, repeat, action).also { it.start() }
+        ): TimerTask =
+                TimerTask(name, delay, repeat, action).also { it.start() }
     }
 }

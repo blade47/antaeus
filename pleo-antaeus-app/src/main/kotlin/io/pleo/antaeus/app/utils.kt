@@ -45,7 +45,7 @@ internal fun setupInitialData(invoiceDal: InvoiceDal, planDal: PlanDal, customer
 internal fun getPaymentProvider(): PaymentProvider {
     return object : PaymentProvider {
         override fun charge(invoice: Invoice): Boolean {
-                return Random.nextBoolean()
+            return Random.nextBoolean()
         }
     }
 }
@@ -68,6 +68,7 @@ internal fun getCurrencyProvider(): CurrencyProvider {
             if ( ! currencyRates.containsKey(from.currency) || ! currencyRates.containsKey(to)) {
                 throw InvalidCurrencyException()
             }
+
             return Money(BigDecimal((from.value.toDouble() / currencyRates[from.currency]!!) * currencyRates[to]!!), to)
         }
     }

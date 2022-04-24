@@ -21,18 +21,21 @@ class BillingService(
         val customers = this.customerService.fetchAll()
         customers.forEach { customer ->
             try {
-                val subscription: Subscription = this.createSubscription(customer)
+                // For already existent customers we pick a random plan to apply
+                val randomPlanDescription = PlanDescription.values()[Random.nextInt(0, PlanDescription.values().size)]
+                val plan: Plan = try { this.planService.getByDescription(randomPlanDescription) } catch (e: PlanNotFoundException) { planService.fetchFirst() }
+
+                val subscription: Subscription = this.createSubscription(to = customer, with = plan)
                 if ( this.invoiceSubscription(subscription) ) this.activateSubscription(subscription)
+
             } catch (e: Exception) {
                 logger.error(e) { "Failed to handle subscription for customer ${customer.id}. $e" }
             }
         }
     }
 
-    fun createSubscription(customer: Customer): Subscription {
-        val randomPlanDescription = PlanDescription.values()[Random.nextInt(0, PlanDescription.values().size)]
-        val plan: Plan = try { this.planService.getByDescription(randomPlanDescription) } catch (e: PlanNotFoundException) { planService.fetchFirst() }
-        return this.subscriptionService.subscribe(customer, plan)
+    fun createSubscription(to: Customer, with: Plan): Subscription {
+        return this.subscriptionService.subscribe(customer = to, to = with)
     }
 
     fun invoiceSubscription(subscription: Subscription): Boolean {
@@ -44,16 +47,19 @@ class BillingService(
                 return this.charge(subscription)
             } catch (e: CustomerNotFoundException) {
                 logger.error { "Failed to charge subscription fee for subscription ${subscription.id}. Customer not found." }
+                // TODO: 24/04/22 Send email
                 cancelSubscription(subscription)
                 return false
             } catch (e: NetworkException) {
                 retryHandler.exceptionOccurred(e);
                 logger.warn { "Network error while charging subscription fee for subscription ${subscription.id}. Retrying..." }
             } catch (e: InvalidCurrencyException) {
+                // TODO: 24/04/22 Send email
                 logger.error(e) { "Failed to convert currency for subscription ${subscription.id}. $e" }
                 cancelSubscription(subscription)
                 return false
             } catch (e: Exception) {
+                // TODO: 24/04/22 Send email
                 logger.error(e) { "Failed to charge subscription fee for subscription ${subscription.id}. $e" }
                 cancelSubscription(subscription)
                 return false
@@ -124,6 +130,7 @@ class BillingService(
             }
             logger.info { "Customer ${customer.id} charged successfully for subscription ${subscription.id}." }
             this.validate(invoiceToCharge)
+            // TODO: 24/04/22 Send email to customer
             return true;
 
         } catch (e: CurrencyMismatchException) {
@@ -148,16 +155,17 @@ class BillingService(
 
     private fun adjustCurrency(to: Invoice, accordingTo: Customer) : Invoice {
         logger.info { "Creating new invoice with updated currency..." }
-
         val moneyInNewCurrency = convertCurrency(from = to.amount, to = accordingTo.currency)
         this.invalidate(to)
         return createInvoice(ofAmount = moneyInNewCurrency, to = accordingTo)
     }
 
     private fun createNewInvoice(subscription: Subscription) : Invoice {
+        logger.info { "Creating new invoice for subscription ${subscription.id}." }
         val plan: Plan = this.planService.fetch(subscription.planId)
         val to: Customer = this.customerService.fetch(subscription.customerId)
-        return createInvoice(plan.amount, to)
+        return if (plan.amount.currency == to.currency) createInvoice(ofAmount = plan.amount, to)
+        else createInvoice( ofAmount = this.convertCurrency(plan.amount, to.currency), to)
     }
 
     private fun createInvoice(ofAmount: Money, to: Customer) : Invoice {
