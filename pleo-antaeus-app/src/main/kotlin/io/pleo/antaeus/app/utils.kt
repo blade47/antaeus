@@ -36,7 +36,7 @@ internal fun setupInitialData(invoiceDal: InvoiceDal, planDal: PlanDal, customer
                     currency = customer.currency
                 ),
                 customerId = customer.id,
-                status = if (it == 1) InvoiceStatus.PENDING else InvoiceStatus.PAID))
+                status = (if (it == 1) invoiceDal.getStatus(InvoiceStatuses.PENDING) else invoiceDal.getStatus(InvoiceStatuses.PAID))!!))
         }
     }
 }

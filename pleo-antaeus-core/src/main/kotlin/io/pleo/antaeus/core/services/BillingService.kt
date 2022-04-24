@@ -69,25 +69,25 @@ class BillingService(
 
     private fun cancelSubscription(subscription: Subscription) {
         logger.trace { "Cancelling subscription ${subscription.id}" }
-        subscription.subscriptionStatus = SubscriptionStatus.CANCELED
+        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.CANCELED)
         subscriptionService.update(subscription)
     }
 
     private fun activateSubscription(subscription: Subscription) {
         logger.trace { "Activating subscription ${subscription.id}" }
-        subscription.subscriptionStatus = SubscriptionStatus.ACTIVE
+        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.ACTIVE)
         subscriptionService.update(subscription)
     }
 
     private fun subscriptionPastDue(subscription: Subscription) {
         logger.trace { "Subscription ${subscription.id} past due." }
-        subscription.subscriptionStatus = SubscriptionStatus.PAST_DUE
+        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.PAST_DUE)
         subscriptionService.update(subscription)
     }
 
     private fun subscriptionExpired(subscription: Subscription) {
         logger.trace { "Subscription ${subscription.id} expired." }
-        subscription.subscriptionStatus = SubscriptionStatus.INCOMPLETE_EXPIRED
+        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.INCOMPLETE_EXPIRED)
         subscriptionService.update(subscription)
     }
 
@@ -103,7 +103,7 @@ class BillingService(
         val invoiceToCharge: Invoice = try {
             subscription.latestInvoiceId?.let {
                 val latestInvoice = this.invoiceService.fetch(it)
-                if (latestInvoice.status != InvoiceStatus.PENDING) {
+                if (latestInvoice.status.status != InvoiceStatuses.PENDING) {
                     val newInvoice = this.createNewInvoice(subscription)
                     this.updateLatestInvoice(to = subscription, with = newInvoice)
                     newInvoice
@@ -143,13 +143,13 @@ class BillingService(
 
     private fun validate(invoice: Invoice) {
         logger.trace { "Validating invoice ${invoice.id}" }
-        invoice.status = InvoiceStatus.PAID
+        invoice.status = invoiceService.getStatus(InvoiceStatuses.PAID)
         invoiceService.update(invoice)
     }
 
     private fun invalidate(invoice: Invoice) {
         logger.trace { "Invalidating invoice ${invoice.id}" }
-        invoice.status = InvoiceStatus.CANCELED
+        invoice.status = invoiceService.getStatus(InvoiceStatuses.CANCELED)
         invoiceService.update(invoice)
     }
 

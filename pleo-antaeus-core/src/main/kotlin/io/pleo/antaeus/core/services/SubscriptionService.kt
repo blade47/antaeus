@@ -6,6 +6,7 @@ package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.core.exceptions.DBConnectionException
 import io.pleo.antaeus.core.exceptions.SubscriptionNotFoundException
+import io.pleo.antaeus.core.exceptions.SubscriptionStatusNotFoundException
 import io.pleo.antaeus.data.SubscriptionDal
 import io.pleo.antaeus.models.*
 import mu.KotlinLogging
@@ -26,11 +27,11 @@ class SubscriptionService(private val dal: SubscriptionDal) {
     }
 
     fun subscribe(customer: Customer, to: Plan): Subscription {
-        val latestInvoice: Invoice? = this.getLatestInvoice(customer)
+        val latestInvoice: Invoice? = this.getPendingInvoice(customer)
         return dal.create( Subscription(
                 customerId = customer.id,
                 planId = to.id,
-                subscriptionStatus = SubscriptionStatus.INCOMPLETE,
+                status = dal.getStatus(SubscriptionStatuses.INCOMPLETE) ?: run { throw SubscriptionStatusNotFoundException(SubscriptionStatuses.INCOMPLETE.toString()) },
                 cancelAtPeriodEnds = false,
                 currentPeriodStarts = LocalDate.now(),
                 currentPeriodEnds = LocalDate.now().plusDays(this.invoiceIntervalDefault.days),
@@ -50,9 +51,19 @@ class SubscriptionService(private val dal: SubscriptionDal) {
         return true
     }
 
-    private fun getLatestInvoice(of: Customer) : Invoice? {
-        val invoices = this.dal.getInvoices(of)
-        invoices.forEach { invoice -> if (invoice.status == InvoiceStatus.PENDING) return invoice }
-        return null
+    fun getStatus(status: SubscriptionStatuses): SubscriptionStatus {
+        return dal.getStatus(status) ?: throw SubscriptionStatusNotFoundException(status.toString())
+    }
+
+    fun createStatus(status: SubscriptionStatuses, description: String): SubscriptionStatus{
+        return dal.createStatus(status, description) ?: throw DBConnectionException()
+    }
+
+    private fun getPendingInvoice(of: Customer) : Invoice? {
+        return dal.getPendingInvoice(of) ?: run { null }
+    }
+
+    private fun getInvoices(of: Customer) : List<Invoice> {
+        return dal.getInvoices(of)
     }
 }

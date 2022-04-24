@@ -6,11 +6,10 @@ package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.core.exceptions.DBConnectionException
 import io.pleo.antaeus.core.exceptions.InvoiceNotFoundException
+import io.pleo.antaeus.core.exceptions.InvoiceStatusNotFoundException
+import io.pleo.antaeus.core.exceptions.SubscriptionStatusNotFoundException
 import io.pleo.antaeus.data.InvoiceDal
-import io.pleo.antaeus.models.Customer
-import io.pleo.antaeus.models.Invoice
-import io.pleo.antaeus.models.InvoiceStatus
-import io.pleo.antaeus.models.Money
+import io.pleo.antaeus.models.*
 import mu.KotlinLogging
 
 class InvoiceService(private val dal: InvoiceDal) {
@@ -21,7 +20,7 @@ class InvoiceService(private val dal: InvoiceDal) {
         return dal.create( Invoice(
                 amount = amount,
                 customerId = to.id,
-                status = InvoiceStatus.PENDING)
+                status = dal.getStatus(InvoiceStatuses.PENDING) ?: run { throw InvoiceStatusNotFoundException(InvoiceStatuses.PENDING.toString()) })
         ) ?: run {
             logger.error { "Failed to create invoice to customer ${to.id}" }
             throw DBConnectionException()
@@ -42,5 +41,13 @@ class InvoiceService(private val dal: InvoiceDal) {
             throw DBConnectionException()
         }
         return true
+    }
+
+    fun getStatus(status: InvoiceStatuses): InvoiceStatus {
+        return dal.getStatus(status) ?: throw InvoiceStatusNotFoundException(status.toString())
+    }
+
+    fun createStatus(status: InvoiceStatuses, description: String): InvoiceStatus{
+        return dal.createStatus(status, description) ?: throw DBConnectionException()
     }
 }

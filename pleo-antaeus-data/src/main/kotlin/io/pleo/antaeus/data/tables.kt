@@ -7,12 +7,18 @@ package io.pleo.antaeus.data
 
 import org.jetbrains.exposed.sql.Table
 
+object InvoiceStatusTable: Table() {
+    val id = integer("id").autoIncrement().primaryKey()
+    val status = text("status")
+    val description = text("description")
+}
+
 object InvoiceTable : Table() {
     val id = integer("id").autoIncrement().primaryKey()
     val currency = varchar("currency", 3)
     val value = decimal("value", 1000, 2)
     val customerId = reference("customer_id", CustomerTable.id)
-    val status = text("status") 
+    val statusId = reference("status_id", InvoiceStatusTable.id)
 }
 
 object CustomerTable : Table() {
@@ -27,11 +33,17 @@ object PlanTable : Table() {
     val value = decimal("value", 1000, 2)
 }
 
+object SubscriptionStatusTable: Table() {
+    val id = integer("id").autoIncrement().primaryKey()
+    val status = text("status")
+    val description = text("description")
+}
+
 object SubscriptionTable : Table() {
     val id = integer("id").autoIncrement().primaryKey()
     val customerId = reference("customer_id", CustomerTable.id)
     val planId = reference("plan_id", PlanTable.id)
-    val subscriptionStatus = text("subscription_status")
+    val statusId = reference("status_id", SubscriptionStatusTable.id)
     val cancelAtPeriodEnds = bool("cancel_at_period_ends")
     val currentPeriodStarts = varchar("current_period_starts", 50)
     val currentPeriodEnds = varchar("current_period_ends", 50)

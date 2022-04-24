@@ -1,8 +1,7 @@
 package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.core.exceptions.CustomerNotFoundException
-import io.pleo.antaeus.data.CustomerDal
-import io.pleo.antaeus.data.InvoiceDal
+import io.pleo.antaeus.data.*
 import io.pleo.antaeus.models.*
 import org.jetbrains.exposed.sql.Database
 import org.junit.jupiter.api.Test

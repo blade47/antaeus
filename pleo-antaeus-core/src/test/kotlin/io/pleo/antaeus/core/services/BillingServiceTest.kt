@@ -7,13 +7,11 @@ import io.pleo.antaeus.core.exceptions.CurrencyMismatchException
 import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.external.CurrencyProvider
 import io.pleo.antaeus.core.external.PaymentProvider
-import io.pleo.antaeus.data.CustomerDal
-import io.pleo.antaeus.data.InvoiceDal
-import io.pleo.antaeus.data.PlanDal
-import io.pleo.antaeus.data.SubscriptionDal
+import io.pleo.antaeus.data.*
 import io.pleo.antaeus.models.*
 import org.jetbrains.exposed.sql.Database
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.math.BigDecimal
@@ -23,11 +21,30 @@ import kotlin.random.Random
 @ExtendWith(MockKExtension::class)
 class BillingServiceTest(db: Database){
 
+    private val planService = PlanService(dal = PlanDal(db = db))
+    private val subscriptionService = SubscriptionService(dal = SubscriptionDal(db = db))
+    private val customerService = CustomerService(dal = CustomerDal(db = db))
+    private val invoiceService = InvoiceService(dal = InvoiceDal(db = db))
+
+    @BeforeEach
+    private fun setup() {
+        createSubscriptionStatuses()
+        createInvoiceStatuses()
+    }
+
     @RelaxedMockK
     private lateinit var paymentProvider: PaymentProvider
 
     @RelaxedMockK
     private lateinit var currencyProvider: CurrencyProvider
+
+    private fun createSubscriptionStatuses() {
+        SubscriptionStatuses.values().forEach { status -> subscriptionService.createStatus(status, status.toString()) }
+    }
+
+    private fun createInvoiceStatuses() {
+        InvoiceStatuses.values().forEach { status -> invoiceService.createStatus(status, status.toString()) }
+    }
 
     private fun createCustomer(currency: Currency? = null) : Customer {
         return customerService.create( Customer(
@@ -46,11 +63,6 @@ class BillingServiceTest(db: Database){
         )
     }
 
-    private val planService = PlanService(dal = PlanDal(db = db))
-    private val subscriptionService = SubscriptionService(dal = SubscriptionDal(db = db))
-    private val customerService = CustomerService(dal = CustomerDal(db = db))
-    private val invoiceService = InvoiceService(dal = InvoiceDal(db = db))
-
     @Test
     fun `create new subscription`() {
         val billingService = BillingService(
@@ -62,7 +74,7 @@ class BillingServiceTest(db: Database){
         val subscription = billingService.createSubscription(to = customer, with = plan)
 
         Assertions.assertNotNull(subscription)
-        Assertions.assertTrue(subscription.subscriptionStatus == SubscriptionStatus.INCOMPLETE)
+        Assertions.assertTrue(subscription.status.status == SubscriptionStatuses.INCOMPLETE)
     }
 
     @Test
@@ -91,7 +103,7 @@ class BillingServiceTest(db: Database){
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.id } == 1)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.currency } == customer.currency)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.value } == plan.amount.value)
         }
@@ -115,7 +127,7 @@ class BillingServiceTest(db: Database){
         Assertions.assertNotNull(subscription)
         Assertions.assertNotNull(subscription.latestInvoiceId)
         Assertions.assertTrue(invoice.id == subscription.latestInvoiceId)
-        Assertions.assertTrue(subscription.latestInvoiceId?.let { invoiceService.fetch(it).status } == InvoiceStatus.PENDING)
+        Assertions.assertTrue(subscription.latestInvoiceId?.let { invoiceService.fetch(it).status.status } == InvoiceStatuses.PENDING)
 
         val invoiced = billingService.invoiceSubscription(subscription)
 
@@ -127,7 +139,7 @@ class BillingServiceTest(db: Database){
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.id } == invoice.id)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.currency } == customer.currency)
         }
     }
@@ -158,7 +170,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.value.toDouble() } == 18.31)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.currency } == customer.currency)
         }
@@ -184,7 +196,7 @@ class BillingServiceTest(db: Database){
         Assertions.assertNotNull(subscription)
         Assertions.assertNotNull(subscription.latestInvoiceId)
         Assertions.assertTrue(wrongInvoice.id == subscription.latestInvoiceId)
-        Assertions.assertTrue(subscription.latestInvoiceId?.let { invoiceService.fetch(it).status } == InvoiceStatus.PENDING)
+        Assertions.assertTrue(subscription.latestInvoiceId?.let { invoiceService.fetch(it).status.status } == InvoiceStatuses.PENDING)
 
         val invoiced = billingService.invoiceSubscription(subscription)
 
@@ -196,13 +208,13 @@ class BillingServiceTest(db: Database){
 
         Assertions.assertNotNull(wrongInvoice)
         Assertions.assertTrue(subscription.latestInvoiceId?.let { wrongInvoice.amount.currency } == Currency.USD)
-        Assertions.assertTrue(subscription.latestInvoiceId?.let { wrongInvoice.status } == InvoiceStatus.CANCELED)
+        Assertions.assertTrue(subscription.latestInvoiceId?.let { wrongInvoice.status.status } == InvoiceStatuses.CANCELED)
 
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.id } != wrongInvoice.id)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.value.toDouble() } == 9.16)
             Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.amount.currency } == customer.currency)
         }
@@ -237,7 +249,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
         }
 
         // Three network exceptions
@@ -258,7 +270,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
         }
 
         // Only network exceptions
@@ -276,7 +288,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PENDING)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PENDING)
         }
     }
 
@@ -309,7 +321,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
         }
 
         // Second payment
@@ -326,7 +338,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
         }
 
         // Third payment
@@ -344,7 +356,7 @@ class BillingServiceTest(db: Database){
         subscription.latestInvoiceId?.let {
             val latestInvoice = invoiceService.fetch(it)
             Assertions.assertNotNull(latestInvoice)
-            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status } == InvoiceStatus.PAID)
+            Assertions.assertTrue(subscription.latestInvoiceId?.let { latestInvoice.status.status } == InvoiceStatuses.PAID)
         }
 
         val invoices = customerService.getInvoices(customer)
@@ -353,6 +365,6 @@ class BillingServiceTest(db: Database){
 
         Assertions.assertTrue(invoices.size == 3)
 
-        invoices.forEach { invoice -> Assertions.assertTrue(invoice.status == InvoiceStatus.PAID) }
+        invoices.forEach { invoice -> Assertions.assertTrue(invoice.status.status == InvoiceStatuses.PAID) }
     }
 }

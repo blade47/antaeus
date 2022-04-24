@@ -6,7 +6,7 @@ data class Subscription(
         val id: Int = Int.MIN_VALUE,
         val customerId: Int,
         val planId: Int,
-        var subscriptionStatus: SubscriptionStatus,
+        var status: SubscriptionStatus,
         val cancelAtPeriodEnds: Boolean,
         val currentPeriodStarts: LocalDate,
         val currentPeriodEnds: LocalDate,

@@ -2,10 +2,8 @@ package io.pleo.antaeus.data
 
 import io.pleo.antaeus.models.Customer
 import io.pleo.antaeus.models.Invoice
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
+import io.pleo.antaeus.models.InvoiceStatuses
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
 class CustomerDal(db: Database) : AntaeusDal<Customer>(db) {
