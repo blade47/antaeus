@@ -1,6 +1,7 @@
 package io.pleo.antaeus.app
 import io.pleo.antaeus.core.exceptions.InvalidCurrencyException
 import io.pleo.antaeus.core.external.CurrencyProvider
+import io.pleo.antaeus.core.external.NotificationProvider
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.data.*
 import io.pleo.antaeus.models.*
@@ -70,6 +71,14 @@ internal fun getCurrencyProvider(): CurrencyProvider {
             }
 
             return Money(BigDecimal((from.value.toDouble() / currencyRates[from.currency]!!) * currencyRates[to]!!), to)
+        }
+    }
+}
+
+internal fun getNotificationProvider(): NotificationProvider {
+    return object : NotificationProvider {
+        override fun send(notification: Notification) {
+            // Sending notification to customer
         }
     }
 }

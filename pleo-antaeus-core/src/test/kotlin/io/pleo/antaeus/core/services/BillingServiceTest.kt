@@ -6,6 +6,7 @@ import io.mockk.junit5.MockKExtension
 import io.pleo.antaeus.core.exceptions.CurrencyMismatchException
 import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.external.CurrencyProvider
+import io.pleo.antaeus.core.external.NotificationProvider
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.data.*
 import io.pleo.antaeus.models.*
@@ -25,11 +26,16 @@ class BillingServiceTest(db: Database){
     private val subscriptionService = SubscriptionService(dal = SubscriptionDal(db = db))
     private val customerService = CustomerService(dal = CustomerDal(db = db))
     private val invoiceService = InvoiceService(dal = InvoiceDal(db = db))
+    private lateinit var billingService: BillingService
 
     @BeforeEach
     private fun setup() {
         createSubscriptionStatuses()
         createInvoiceStatuses()
+
+        this.billingService = BillingService(
+            paymentProvider, currencyProvider, notificationProvider, customerService, invoiceService, subscriptionService, planService
+        )
     }
 
     @RelaxedMockK
@@ -37,6 +43,9 @@ class BillingServiceTest(db: Database){
 
     @RelaxedMockK
     private lateinit var currencyProvider: CurrencyProvider
+
+    @RelaxedMockK
+    private lateinit var notificationProvider: NotificationProvider
 
     private fun createSubscriptionStatuses() {
         SubscriptionStatuses.values().forEach { status -> subscriptionService.createStatus(status, status.toString()) }
@@ -65,10 +74,6 @@ class BillingServiceTest(db: Database){
 
     @Test
     fun `create new subscription`() {
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
-
         val customer = createCustomer()
         val plan = createPlan()
         val subscription = billingService.createSubscription(to = customer, with = plan)
@@ -82,10 +87,6 @@ class BillingServiceTest(db: Database){
         Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
 
         every { paymentProvider.charge(any()) } returns true
-
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
 
         val customer = createCustomer()
         val plan = createPlan(Money(BigDecimal(18.0), customer.currency))
@@ -113,10 +114,6 @@ class BillingServiceTest(db: Database){
     fun `invoice subscription for customer with pending invoice`() {
         Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
         every { paymentProvider.charge(any()) } returns true
-
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
 
         val customer = createCustomer()
         val invoice = invoiceService.create(amount = Money(BigDecimal(10.0), currency = customer.currency), to = customer)
@@ -148,10 +145,6 @@ class BillingServiceTest(db: Database){
     fun `invoice subscription with plan in USD currency for customer with EUR currency and no pending invoices`() {
         Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
 
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
-
         val customer = createCustomer(Currency.EUR)
         val plan = createPlan(amount = Money(BigDecimal(20.0), Currency.USD))
 
@@ -179,10 +172,6 @@ class BillingServiceTest(db: Database){
     @Test
     fun `invoice subscription for customer having last pending invoice with wrong currency`() {
         Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
-
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
 
         val customer = createCustomer(Currency.EUR)
         var wrongInvoice = invoiceService.create(amount = Money(BigDecimal(10.0), currency = Currency.USD), to = customer)
@@ -223,10 +212,6 @@ class BillingServiceTest(db: Database){
     @Test
     fun `charging subscriptions has multiple network errors`() {
         Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
-
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
 
         val customer = createCustomer(Currency.USD)
         val plan = createPlan()
@@ -295,10 +280,6 @@ class BillingServiceTest(db: Database){
     @Test
     fun `multiple payments for subscription`() {
         Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
-
-        val billingService = BillingService(
-            paymentProvider, currencyProvider, customerService, invoiceService, subscriptionService, planService
-        )
 
         val customer = createCustomer(Currency.USD)
         val plan = createPlan()

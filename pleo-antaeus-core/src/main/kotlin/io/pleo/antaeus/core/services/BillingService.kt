@@ -2,6 +2,7 @@ package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.core.exceptions.*
 import io.pleo.antaeus.core.external.CurrencyProvider
+import io.pleo.antaeus.core.external.NotificationProvider
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.models.*
 import mu.KotlinLogging
@@ -10,6 +11,7 @@ import kotlin.random.Random
 class BillingService(
     private val paymentProvider: PaymentProvider,
     private val currencyProvider: CurrencyProvider,
+    private val notificationProvider: NotificationProvider,
     private val customerService: CustomerService,
     private val invoiceService: InvoiceService,
     private val subscriptionService: SubscriptionService,
@@ -17,7 +19,7 @@ class BillingService(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    init {
+    fun setupInitialData() {
         val customers = this.customerService.fetchAll()
         customers.forEach { customer ->
             try {
@@ -30,6 +32,7 @@ class BillingService(
 
             } catch (e: Exception) {
                 logger.error(e) { "Failed to handle subscription for customer ${customer.id}. $e" }
+                notificationProvider.send(Notification(1, "Unexpected exception while handling subscription of ${customer.id}"))
             }
         }
     }
@@ -47,21 +50,21 @@ class BillingService(
                 return this.charge(subscription)
             } catch (e: CustomerNotFoundException) {
                 logger.error { "Failed to charge subscription fee for subscription ${subscription.id}. Customer not found." }
-                // TODO: 24/04/22 Send email
+                notificationProvider.send(Notification(1, "Customer not found during charging of subscription ${subscription.id}"))
                 cancelSubscription(subscription)
                 return false
             } catch (e: NetworkException) {
                 retryHandler.exceptionOccurred(e);
                 logger.warn { "Network error while charging subscription fee for subscription ${subscription.id}. Retrying..." }
             } catch (e: InvalidCurrencyException) {
-                // TODO: 24/04/22 Send email
                 logger.error(e) { "Failed to convert currency for subscription ${subscription.id}. $e" }
+                notificationProvider.send(Notification(1, "Failed to convert currency of subscription ${subscription.id}"))
                 cancelSubscription(subscription)
                 return false
             } catch (e: Exception) {
-                // TODO: 24/04/22 Send email
                 logger.error(e) { "Failed to charge subscription fee for subscription ${subscription.id}. $e" }
                 cancelSubscription(subscription)
+                notificationProvider.send(Notification(1, "Unexpected exception while charging subscription ${subscription.id}"))
                 return false
             }
         }
@@ -130,7 +133,10 @@ class BillingService(
             }
             logger.info { "Customer ${customer.id} charged successfully for subscription ${subscription.id}." }
             this.validate(invoiceToCharge)
-            // TODO: 24/04/22 Send email to customer
+            notificationProvider.send(Notification(
+                customer.id,
+                "Subscription for using our Antaeus APP has been charged successfully. Attached you can find the related invoice.",
+                invoiceToCharge))
             return true;
 
         } catch (e: CurrencyMismatchException) {
