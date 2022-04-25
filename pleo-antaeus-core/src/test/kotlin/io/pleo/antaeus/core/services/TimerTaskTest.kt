@@ -13,33 +13,36 @@ class TimerTaskTest() {
     @Test
     fun `Basic operation`() {
         var times = 0
-        val timer = TimerTask.start("test", repeat = 100.milliseconds) {
+        val task = TimerTask.create("test", repeat = 100.milliseconds) {
             times++
         }
+        task.start()
         Thread.sleep(1_000)
-        timer.shutdown()
+        task.shutdown()
         Thread.sleep(1_000)
         assert(times == 10)
-        assert(! timer.isRunning())
+        assert(! task.isRunning())
     }
 
     @Test
     fun `cancel during task run`() {
-        val timer = TimerTask.start("test", repeat = 100.milliseconds) {
+        val task = TimerTask.create("test", repeat = 100.milliseconds) {
             println("Task running...")
         }
+        task.start()
         Thread.sleep(1_000)
-        timer.shutdown()
+        task.shutdown()
         Thread.sleep(1_000)
-        assert(! timer.isRunning())
+        assert(! task.isRunning())
     }
 
     @Test
     fun `shutdown and restart task`() {
         var times = 0
-        val task = TimerTask.start("test", repeat = 100.milliseconds) {
+        val task = TimerTask.create("test", repeat = 100.milliseconds) {
             times++
         }
+        task.start()
         Thread.sleep(1_000)
         task.shutdown()
         Thread.sleep(1_000)
@@ -57,7 +60,7 @@ class TimerTaskTest() {
     fun `delay between calls`() {
         val deltas = mutableListOf<Duration>()
         var startedAt: Long? = null
-        val task = TimerTask.start("test", repeat = 2000.milliseconds) {
+        val task = TimerTask.create("test", repeat = 2000.milliseconds) {
             val newStarting = System.currentTimeMillis()
             startedAt?.let {
                 val delta = newStarting - it
@@ -66,7 +69,7 @@ class TimerTaskTest() {
             startedAt = newStarting
             delay(1000.milliseconds)
         }
-
+        task.start()
         Thread.sleep(20_000)
         task.shutdown()
         Thread.sleep(2_000)
@@ -81,7 +84,7 @@ class TimerTaskTest() {
     fun `delay between calls with internal function heavier than repeating time`() {
         val deltas = mutableListOf<Duration>()
         var startedAt: Long? = null
-        val task = TimerTask.start("test", repeat = 1000.milliseconds) {
+        val task = TimerTask.create("test", repeat = 1000.milliseconds) {
             val newStarting = System.currentTimeMillis()
             startedAt?.let {
                 val delta = newStarting - it
@@ -90,7 +93,7 @@ class TimerTaskTest() {
             startedAt = newStarting
             delay(2000.milliseconds)
         }
-
+        task.start()
         Thread.sleep(20_000)
         task.shutdown()
         Thread.sleep(2_000)

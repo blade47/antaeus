@@ -9,7 +9,11 @@ import java.math.BigDecimal
 import kotlin.random.Random
 
 // This will create all schemas and setup initial data
-internal fun setupInitialData(invoiceDal: InvoiceDal, planDal: PlanDal, customerDal: CustomerDal) {
+internal fun setupInitialData(invoiceDal: InvoiceDal, planDal: PlanDal, customerDal: CustomerDal, subscriptionDal: SubscriptionDal) {
+
+    SubscriptionStatuses.values().forEach { status -> subscriptionDal.createStatus(status, status.toString()) }
+    InvoiceStatuses.values().forEach { status -> invoiceDal.createStatus(status, status.toString()) }
+
     val customers = (1..100).mapNotNull {
         customerDal.create( Customer(
                 currency = Currency.values()[Random.nextInt(0, Currency.values().size)])

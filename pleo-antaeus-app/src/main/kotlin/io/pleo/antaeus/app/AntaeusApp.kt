@@ -51,7 +51,7 @@ fun main() {
     val customerDal = CustomerDal(db = db)
 
     // Insert example data in the database.
-    setupInitialData(invoiceDal, planDal, customerDal)
+    setupInitialData(invoiceDal, planDal, customerDal, subscriptionDal)
 
     // Get third parties
     val paymentProvider = getPaymentProvider()
@@ -63,25 +63,23 @@ fun main() {
     val customerService = CustomerService(dal = customerDal)
     val subscriptionService = SubscriptionService(dal = subscriptionDal)
     val planService = PlanService(dal = planDal)
-
-    try {
-        // Run as a background task to update daily the subscription table and charge users
-        val billingService = BillingService(
-                paymentProvider = paymentProvider,
-                currencyProvider = currencyProvider,
-                notificationProvider = notificationProvider,
-                customerService = customerService,
-                invoiceService = invoiceService,
-                subscriptionService = subscriptionService,
-                planService = planService
-        )
-    } catch(e: Exception) {
-        logger.error(e) { "Error during the execution of the billing service: $e "}
-    }
+    val billingService = BillingService(
+        paymentProvider = paymentProvider,
+        currencyProvider = currencyProvider,
+        notificationProvider = notificationProvider,
+        customerService = customerService,
+        invoiceService = invoiceService,
+        subscriptionService = subscriptionService,
+        planService = planService
+    )
+    billingService.setupInitialData()
 
     // Create REST web service
     AntaeusRest(
-            invoiceService = invoiceService,
-            customerService = customerService
+        invoiceService = invoiceService,
+        customerService = customerService,
+        subscriptionService = subscriptionService,
+        planService = planService,
+        billingService = billingService
     ).run()
 }

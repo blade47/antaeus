@@ -20,7 +20,7 @@ class TimerTask internal constructor(
         try {
             action()
         } catch (e: Throwable) {
-            logger.warn { "$name timer action failed: $action" }
+            logger.error { "$name timer action failed: $action" }
         }
     }
 
@@ -72,14 +72,14 @@ class TimerTask internal constructor(
          * once the `action` completes, waits the `repeat` duration
          * and runs again, until `shutdown` is called.
          *
-         * if action() throws an exception, it will be swallowed and a warning will be logged.
+         * if action() throws an exception, it will be swallowed and an error will be logged.
          */
-        fun start(
+        fun create(
                 name: String,
                 delay: Duration = Duration.ZERO,
                 repeat: Duration? = null,
                 action: suspend () -> Unit
         ): TimerTask =
-                TimerTask(name, delay, repeat, action).also { it.start() }
+                TimerTask(name, delay, repeat, action)
     }
 }

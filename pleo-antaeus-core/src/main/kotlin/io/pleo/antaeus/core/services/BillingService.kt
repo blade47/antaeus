@@ -4,9 +4,15 @@ import io.pleo.antaeus.core.exceptions.*
 import io.pleo.antaeus.core.external.CurrencyProvider
 import io.pleo.antaeus.core.external.NotificationProvider
 import io.pleo.antaeus.core.external.PaymentProvider
+import io.pleo.antaeus.core.services.task.TimerTask
 import io.pleo.antaeus.models.*
 import mu.KotlinLogging
+import java.time.Duration
+import java.time.LocalDate
+import java.time.Period
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 
 class BillingService(
     private val paymentProvider: PaymentProvider,
@@ -18,7 +24,9 @@ class BillingService(
     private val planService: PlanService
 ) {
     private val logger = KotlinLogging.logger {}
-
+    private val task = TimerTask.create("billingRoutineTask", repeat = 12.hours) {
+        this.billingRoutine()
+    }
     fun setupInitialData() {
         val customers = this.customerService.fetchAll()
         customers.forEach { customer ->
@@ -28,13 +36,112 @@ class BillingService(
                 val plan: Plan = try { this.planService.getByDescription(randomPlanDescription) } catch (e: PlanNotFoundException) { planService.fetchFirst() }
 
                 val subscription: Subscription = this.createSubscription(to = customer, with = plan)
-                if ( this.invoiceSubscription(subscription) ) this.activateSubscription(subscription)
+                if ( this.invoiceSubscription(subscription) ) this.subscriptionService.activate(subscription)
 
             } catch (e: Exception) {
                 logger.error(e) { "Failed to handle subscription for customer ${customer.id}. $e" }
                 notificationProvider.send(Notification(1, "Unexpected exception while handling subscription of ${customer.id}"))
             }
         }
+    }
+
+    // To run twice a day so if we have network problems we cover it
+    fun billingRoutine(currentDate: LocalDate? = null) {
+        val subscriptions = this.subscriptionService.fetchAll()
+        val today = currentDate ?: LocalDate.now()
+        subscriptions.forEach { subscription ->
+            when (subscription.status.status) {
+                SubscriptionStatuses.ACTIVE -> {
+                    if (subscription.currentPeriodEnds.isEqual(today) || subscription.currentPeriodEnds.isBefore(today)) {
+                        if ( ! subscription.cancelAtPeriodEnds)
+                            if ( this.invoiceSubscription(subscription) ) {
+                                subscriptionService.renew(subscription)
+                                notificationProvider.send(
+                                    Notification(
+                                        subscription.customerId,
+                                        "The subscription is now renewed, thank you."
+                                    )
+                                )
+                            }
+                            else this.subscriptionService.pastDue(subscription)
+                        else {
+                            this.subscriptionService.cancel(subscription)
+                            notificationProvider.send(
+                                Notification(
+                                    subscription.customerId,
+                                    "As requested, your subscription is now canceled, thank you."
+                                )
+                            )
+                        }
+                    }
+                }
+                SubscriptionStatuses.INCOMPLETE -> {
+                    if (Period.between(subscription.created, today).days <= 3) {
+                        if (this.invoiceSubscription(subscription)) {
+                            this.subscriptionService.activate(subscription)
+                            notificationProvider.send(
+                                Notification(
+                                    subscription.customerId,
+                                    "The subscription is now active, thank you."
+                                )
+                            )
+                        }
+                    }
+                    else {
+                        notificationProvider.send(
+                            Notification(
+                                subscription.customerId,
+                                "We were not able to charge your first invoice for activating the subscription, we are therefore cancelling it."
+                            )
+                        )
+                        this.subscriptionService.expire(subscription)
+                    }
+                }
+                SubscriptionStatuses.CANCELED -> {
+                    // TODO: 24/04/22 For future developments
+                }
+                SubscriptionStatuses.INCOMPLETE_EXPIRED -> {
+                    // TODO: 24/04/22 For future developments
+                }
+                SubscriptionStatuses.PAST_DUE -> {
+                    if (Period.between(subscription.currentPeriodEnds, today).days <= 3) {
+                        if ( this.invoiceSubscription(subscription) ) {
+                            subscriptionService.renew(subscription)
+                            notificationProvider.send(
+                                Notification(
+                                    subscription.customerId,
+                                    "The subscription is now renewed, thank you."
+                                )
+                            )
+                        }
+                    } else {
+                        this.subscriptionService.cancel(subscription)
+                        notificationProvider.send(
+                            Notification(
+                                subscription.customerId,
+                                "We were not able to charge your last invoice for keeping the subscription, we are therefore cancelling it."
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun startBillingTask() {
+        task.start()
+    }
+
+    fun stopBillingTask() {
+        task.shutdown()
+    }
+
+    fun forceStopBillingTask() {
+        task.cancel()
+    }
+
+    fun isBillingTaskRunning(): Boolean {
+        return this.task.isRunning()
     }
 
     fun createSubscription(to: Customer, with: Plan): Subscription {
@@ -51,7 +158,7 @@ class BillingService(
             } catch (e: CustomerNotFoundException) {
                 logger.error { "Failed to charge subscription fee for subscription ${subscription.id}. Customer not found." }
                 notificationProvider.send(Notification(1, "Customer not found during charging of subscription ${subscription.id}"))
-                cancelSubscription(subscription)
+                this.subscriptionService.cancel(subscription)
                 return false
             } catch (e: NetworkException) {
                 retryHandler.exceptionOccurred(e);
@@ -59,45 +166,15 @@ class BillingService(
             } catch (e: InvalidCurrencyException) {
                 logger.error(e) { "Failed to convert currency for subscription ${subscription.id}. $e" }
                 notificationProvider.send(Notification(1, "Failed to convert currency of subscription ${subscription.id}"))
-                cancelSubscription(subscription)
+                this.subscriptionService.cancel(subscription)
                 return false
             } catch (e: Exception) {
                 logger.error(e) { "Failed to charge subscription fee for subscription ${subscription.id}. $e" }
-                cancelSubscription(subscription)
+                this.subscriptionService.cancel(subscription)
                 notificationProvider.send(Notification(1, "Unexpected exception while charging subscription ${subscription.id}"))
                 return false
             }
         }
-    }
-
-    private fun cancelSubscription(subscription: Subscription) {
-        logger.trace { "Cancelling subscription ${subscription.id}" }
-        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.CANCELED)
-        subscriptionService.update(subscription)
-    }
-
-    private fun activateSubscription(subscription: Subscription) {
-        logger.trace { "Activating subscription ${subscription.id}" }
-        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.ACTIVE)
-        subscriptionService.update(subscription)
-    }
-
-    private fun subscriptionPastDue(subscription: Subscription) {
-        logger.trace { "Subscription ${subscription.id} past due." }
-        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.PAST_DUE)
-        subscriptionService.update(subscription)
-    }
-
-    private fun subscriptionExpired(subscription: Subscription) {
-        logger.trace { "Subscription ${subscription.id} expired." }
-        subscription.status = subscriptionService.getStatus(SubscriptionStatuses.INCOMPLETE_EXPIRED)
-        subscriptionService.update(subscription)
-    }
-
-    private fun updateLatestInvoice(to: Subscription, with: Invoice) {
-        logger.trace { "Updating latest invoice for subscription: ${to.id} with invoice: ${with.id}." }
-        to.latestInvoiceId = with.id
-        subscriptionService.update(to)
     }
 
     private fun charge(subscription: Subscription) : Boolean {
@@ -108,21 +185,21 @@ class BillingService(
                 val latestInvoice = this.invoiceService.fetch(it)
                 if (latestInvoice.status.status != InvoiceStatuses.PENDING) {
                     val newInvoice = this.createNewInvoice(subscription)
-                    this.updateLatestInvoice(to = subscription, with = newInvoice)
+                    this.subscriptionService.updateLatestInvoice(to = subscription, with = newInvoice)
                     newInvoice
                 } else {
                     latestInvoice
                 }
             }?: run {
                 val newInvoice = this.createNewInvoice(subscription)
-                this.updateLatestInvoice(to = subscription, with = newInvoice)
+                this.subscriptionService.updateLatestInvoice(to = subscription, with = newInvoice)
                 newInvoice
             }
 
         } catch (e: InvoiceNotFoundException) {
             logger.warn { "Failed to retrieve latest invoice for subscription ${subscription.id}." }
             val newInvoice = this.createNewInvoice(subscription)
-            this.updateLatestInvoice(to = subscription, with = newInvoice)
+            this.subscriptionService.updateLatestInvoice(to = subscription, with = newInvoice)
             newInvoice
         }
 
@@ -132,7 +209,7 @@ class BillingService(
                 return false;
             }
             logger.info { "Customer ${customer.id} charged successfully for subscription ${subscription.id}." }
-            this.validate(invoiceToCharge)
+            this.invoiceService.validate(invoiceToCharge)
             notificationProvider.send(Notification(
                 customer.id,
                 "Subscription for using our Antaeus APP has been charged successfully. Attached you can find the related invoice.",
@@ -142,27 +219,15 @@ class BillingService(
         } catch (e: CurrencyMismatchException) {
             logger.warn { "Failed to charge subscription fee for customer ${customer.id} with subscription ${subscription.id}. Currency mismatch." }
             val newInvoice = adjustCurrency(to = invoiceToCharge, accordingTo = customer)
-            this.updateLatestInvoice(to = subscription, with = newInvoice)
+            this.subscriptionService.updateLatestInvoice(to = subscription, with = newInvoice)
             return charge(subscription = subscription)
         }
-    }
-
-    private fun validate(invoice: Invoice) {
-        logger.trace { "Validating invoice ${invoice.id}" }
-        invoice.status = invoiceService.getStatus(InvoiceStatuses.PAID)
-        invoiceService.update(invoice)
-    }
-
-    private fun invalidate(invoice: Invoice) {
-        logger.trace { "Invalidating invoice ${invoice.id}" }
-        invoice.status = invoiceService.getStatus(InvoiceStatuses.CANCELED)
-        invoiceService.update(invoice)
     }
 
     private fun adjustCurrency(to: Invoice, accordingTo: Customer) : Invoice {
         logger.info { "Creating new invoice with updated currency..." }
         val moneyInNewCurrency = convertCurrency(from = to.amount, to = accordingTo.currency)
-        this.invalidate(to)
+        this.invoiceService.invalidate(to)
         return createInvoice(ofAmount = moneyInNewCurrency, to = accordingTo)
     }
 

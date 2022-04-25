@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.math.BigDecimal
+import java.time.LocalDate
 import kotlin.random.Random
 
 @ExtendWith(EmbeddedDb::class)
@@ -70,6 +71,46 @@ class BillingServiceTest(db: Database){
                 currency = Currency.USD)
             })
         )
+    }
+
+    private fun setupInitialData() {
+
+        createInvoiceStatuses()
+        createSubscriptionStatuses()
+
+        val customers = (1..100).mapNotNull {
+            customerService.create( Customer(
+                currency = Currency.values()[Random.nextInt(0, Currency.values().size)])
+            )
+        }
+
+        planService.create( Plan(
+            description = PlanDescription.STANDARD,
+            amount = Money(
+                value = BigDecimal(15.0),
+                currency = Currency.USD))
+        )
+        planService.create( Plan(
+            description = PlanDescription.PREMIUM,
+            amount = Money(
+                value = BigDecimal(450.0),
+                currency = Currency.USD))
+        )
+
+        customers.forEach { customer ->
+            (1..10).forEach {
+                invoiceService.create(
+                    amount = Money(
+                        value = BigDecimal(Random.nextDouble(10.0, 500.0)),
+                        currency = customer.currency
+                    ),
+                    to = customer,
+                    withStatus = (if (it == 1) invoiceService.getStatus(InvoiceStatuses.PENDING) else invoiceService.getStatus(
+                        InvoiceStatuses.PAID
+                    ))
+                )
+            }
+        }
     }
 
     @Test
@@ -347,5 +388,127 @@ class BillingServiceTest(db: Database){
         Assertions.assertTrue(invoices.size == 3)
 
         invoices.forEach { invoice -> Assertions.assertTrue(invoice.status.status == InvoiceStatuses.PAID) }
+    }
+
+    @Test
+    fun `billing routine`() {
+        Assertions.assertTrue(subscriptionService.fetchAll().isEmpty())
+
+        every { paymentProvider.charge(any()) } returns true
+        every { currencyProvider.convert(any(), any()) } returns Money(BigDecimal(450), Currency.USD)
+
+        setupInitialData()
+
+        var customers = customerService.fetchAll()
+        var invoices = invoiceService.fetchAll()
+        var subscriptions = subscriptionService.fetchAll()
+
+        Assertions.assertTrue(customers.size == 100)
+        Assertions.assertTrue(invoices.size == 1000)
+        Assertions.assertTrue(subscriptions.isEmpty())
+
+        customers.forEach { customer ->
+            Assertions.assertNotNull(subscriptionService.getPendingInvoice(customer))
+        }
+
+        var pendingInvoices = 0
+        invoices.forEach { invoice ->
+            if (invoice.status.status == InvoiceStatuses.PENDING) pendingInvoices++
+        }
+
+        Assertions.assertTrue(pendingInvoices == 100)
+
+        billingService.setupInitialData()
+
+        customers = customerService.fetchAll()
+        invoices = invoiceService.fetchAll()
+        subscriptions = subscriptionService.fetchAll()
+
+        customers.forEach { customer ->
+            Assertions.assertNull(subscriptionService.getPendingInvoice(customer))
+        }
+
+        pendingInvoices = 0
+        invoices.forEach { invoice ->
+            if (invoice.status.status == InvoiceStatuses.PENDING) pendingInvoices++
+        }
+
+        Assertions.assertTrue(pendingInvoices == 0)
+        Assertions.assertTrue(invoices.size == 1000)
+        Assertions.assertTrue(subscriptions.size == 100)
+
+        var activeSubscriptions = 0
+        subscriptions.forEach { subscription ->
+            if (subscription.status.status == SubscriptionStatuses.ACTIVE) activeSubscriptions++
+        }
+
+        Assertions.assertTrue(activeSubscriptions == 100)
+
+        billingService.billingRoutine()
+
+        customers = customerService.fetchAll()
+        invoices = invoiceService.fetchAll()
+        subscriptions = subscriptionService.fetchAll()
+
+        customers.forEach { customer ->
+            Assertions.assertNull(subscriptionService.getPendingInvoice(customer))
+        }
+
+        pendingInvoices = 0
+        invoices.forEach { invoice ->
+            if (invoice.status.status == InvoiceStatuses.PENDING) pendingInvoices++
+        }
+
+        Assertions.assertTrue(pendingInvoices == 0)
+        Assertions.assertTrue(invoices.size == 1000)
+        Assertions.assertTrue(subscriptions.size == 100)
+
+        every { paymentProvider.charge(any()) } returns false andThen true
+
+        billingService.billingRoutine(currentDate = LocalDate.now().plusDays(30))
+
+        invoices = invoiceService.fetchAll()
+        subscriptions = subscriptionService.fetchAll()
+
+        pendingInvoices = 0
+        invoices.forEach { invoice ->
+            if (invoice.status.status == InvoiceStatuses.PENDING) pendingInvoices++
+        }
+
+        activeSubscriptions = 0
+        var pastDueSubscriptions = 0
+        subscriptions.forEach { subscription ->
+            if (subscription.status.status == SubscriptionStatuses.ACTIVE) activeSubscriptions++
+            if (subscription.status.status == SubscriptionStatuses.PAST_DUE) pastDueSubscriptions++
+        }
+
+        Assertions.assertTrue(pendingInvoices == 1)
+        Assertions.assertTrue(invoices.size == 1100)
+        Assertions.assertTrue(subscriptions.size == 100)
+        Assertions.assertTrue(activeSubscriptions == 99)
+        Assertions.assertTrue(pastDueSubscriptions == 1)
+
+        billingService.billingRoutine(currentDate = LocalDate.now().plusDays(1))
+
+        invoices = invoiceService.fetchAll()
+        subscriptions = subscriptionService.fetchAll()
+
+        pendingInvoices = 0
+        invoices.forEach { invoice ->
+            if (invoice.status.status == InvoiceStatuses.PENDING) pendingInvoices++
+        }
+
+        activeSubscriptions = 0
+        pastDueSubscriptions = 0
+        subscriptions.forEach { subscription ->
+            if (subscription.status.status == SubscriptionStatuses.ACTIVE) activeSubscriptions++
+            if (subscription.status.status == SubscriptionStatuses.PAST_DUE) pastDueSubscriptions++
+        }
+
+        Assertions.assertTrue(pendingInvoices == 0)
+        Assertions.assertTrue(invoices.size == 1100)
+        Assertions.assertTrue(subscriptions.size == 100)
+        Assertions.assertTrue(activeSubscriptions == 100)
+        Assertions.assertTrue(pastDueSubscriptions == 0)
     }
 }

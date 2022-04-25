@@ -8,8 +8,7 @@ import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.get
 import io.javalin.apibuilder.ApiBuilder.path
 import io.pleo.antaeus.core.exceptions.EntityNotFoundException
-import io.pleo.antaeus.core.services.CustomerService
-import io.pleo.antaeus.core.services.InvoiceService
+import io.pleo.antaeus.core.services.*
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -17,7 +16,10 @@ private val thisFile: () -> Unit = {}
 
 class AntaeusRest(
     private val invoiceService: InvoiceService,
-    private val customerService: CustomerService
+    private val customerService: CustomerService,
+    private val subscriptionService: SubscriptionService,
+    private val planService: PlanService,
+    private val billingService: BillingService
 ) : Runnable {
 
     override fun run() {
@@ -76,6 +78,61 @@ class AntaeusRest(
                         // URL: /rest/v1/customers/{:id}
                         get(":id") {
                             it.json(customerService.fetch(it.pathParam("id").toInt()))
+                        }
+                    }
+
+                    path("subscriptions") {
+                        // URL: /rest/v1/subscriptions
+                        get {
+                            it.json(subscriptionService.fetchAll())
+                        }
+
+                        // URL: /rest/v1/subscriptions/{:id}
+                        get(":id") {
+                            it.json(subscriptionService.fetch(it.pathParam("id").toInt()))
+                        }
+                    }
+
+                    path("plans") {
+                        // URL: /rest/v1/plans
+                        get {
+                            it.json(planService.fetchAll())
+                        }
+
+                        // URL: /rest/v1/plans/{:id}
+                        get(":id") {
+                            it.json(planService.fetch(it.pathParam("id").toInt()))
+                        }
+                    }
+
+                    path("startBillingTask") {
+                        // URL: /rest/v1/startBillingTask
+                        get {
+                            billingService.startBillingTask()
+                            it.json({ "status" to "started" })
+                        }
+                    }
+
+                    path("stopBillingTask") {
+                        // URL: /rest/v1/stopBillingTask
+                        get {
+                            billingService.stopBillingTask()
+                            it.json({ "status" to billingService.isBillingTaskRunning() })
+                        }
+                    }
+
+                    path("forceStopBillingTask") {
+                        // URL: /rest/v1/forceStopBillingTask
+                        get {
+                            if (billingService.isBillingTaskRunning()) billingService.forceStopBillingTask()
+                            it.json({ "status" to billingService.isBillingTaskRunning() })
+                        }
+                    }
+
+                    path("isBillingTaskRunning") {
+                        // URL: /rest/v1/isBillingTaskRunning
+                        get {
+                            it.json({ "status" to billingService.isBillingTaskRunning() })
                         }
                     }
                 }
