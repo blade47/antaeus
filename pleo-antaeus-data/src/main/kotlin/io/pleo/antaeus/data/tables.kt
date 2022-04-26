@@ -31,6 +31,7 @@ object PlanTable : Table() {
     val description = text("description").uniqueIndex()
     val currency = varchar("currency", 3)
     val value = decimal("value", 1000, 2)
+    val invoiceInterval = text("invoice_interval")
 }
 
 object SubscriptionStatusTable: Table() {
@@ -49,6 +50,5 @@ object SubscriptionTable : Table() {
     val currentPeriodEnds = varchar("current_period_ends", 50)
     val created = varchar("created", 50)
     val canceledAt = varchar("canceled_at", 50).nullable()
-    val pendingInvoiceInterval = text("pending_invoice_interval")
     val latestInvoiceId = reference("invoice_id", InvoiceTable.id).nullable()
 }

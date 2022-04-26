@@ -39,7 +39,8 @@ fun ResultRow.toPlan(): Plan = Plan(
     amount = Money(
         value = this[PlanTable.value],
         currency = Currency.valueOf(this[PlanTable.currency])
-    )
+    ),
+    invoiceInterval = InvoiceInterval.valueOf(this[PlanTable.invoiceInterval])
 )
 
 fun ResultRow.toSubscriptionStatus(): SubscriptionStatus = SubscriptionStatus(
@@ -51,7 +52,14 @@ fun ResultRow.toSubscriptionStatus(): SubscriptionStatus = SubscriptionStatus(
 fun ResultRow.toSubscription(): Subscription = Subscription(
     id = this[SubscriptionTable.id],
     customerId = this[SubscriptionTable.customerId],
-    planId = this[SubscriptionTable.planId],
+    plan = Plan(
+        id = this[PlanTable.id],
+        description = PlanDescription.valueOf(this[PlanTable.description]),
+        amount = Money(
+            value = this[PlanTable.value],
+            currency = Currency.valueOf(this[PlanTable.currency])
+        ),
+        invoiceInterval = InvoiceInterval.valueOf(this[PlanTable.invoiceInterval])),
     status = SubscriptionStatus(
         id = this[SubscriptionStatusTable.id],
         status = SubscriptionStatuses.valueOf(this[SubscriptionStatusTable.status]),
@@ -61,6 +69,5 @@ fun ResultRow.toSubscription(): Subscription = Subscription(
     currentPeriodEnds = LocalDate.parse(this[SubscriptionTable.currentPeriodEnds]),
     created = LocalDate.parse(this[SubscriptionTable.created]),
     canceledAt = this[SubscriptionTable.canceledAt]?.let { s -> LocalDate.parse(s) },
-    pendingInvoiceInterval = InvoiceInterval.valueOf(this[SubscriptionTable.pendingInvoiceInterval]),
     latestInvoiceId = this[SubscriptionTable.latestInvoiceId]
 )

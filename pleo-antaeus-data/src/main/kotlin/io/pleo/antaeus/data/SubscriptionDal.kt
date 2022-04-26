@@ -13,13 +13,12 @@ class SubscriptionDal(db: Database) : AntaeusDal<Subscription>(db) {
             // Insert the subscription and return its new id.
             SubscriptionTable.insert {
                 it[this.customerId] = entity.customerId
-                it[this.planId] = entity.planId
+                it[this.planId] = entity.plan.id
                 it[this.cancelAtPeriodEnds] = entity.cancelAtPeriodEnds
                 it[this.statusId] = entity.status.id
                 it[this.currentPeriodStarts] = entity.currentPeriodStarts.toString()
                 it[this.currentPeriodEnds] = entity.currentPeriodEnds.toString()
                 it[this.created] = entity.created.toString()
-                it[this.pendingInvoiceInterval] = entity.pendingInvoiceInterval.toString()
                 it[this.latestInvoiceId] = entity.latestInvoiceId
             } get SubscriptionTable.id
         }
@@ -31,12 +30,11 @@ class SubscriptionDal(db: Database) : AntaeusDal<Subscription>(db) {
         return transaction(db) {
             // Update the subscription and return the number of rows updated.
             SubscriptionTable.update({ SubscriptionTable.id.eq(entity.id) }) {
-                it[this.planId] = entity.planId
+                it[this.planId] = entity.plan.id
                 it[this.statusId] = entity.status.id
                 it[this.cancelAtPeriodEnds] = entity.cancelAtPeriodEnds
                 it[this.currentPeriodStarts] = entity.currentPeriodStarts.toString()
                 it[this.currentPeriodEnds] = entity.currentPeriodEnds.toString()
-                it[this.pendingInvoiceInterval] = entity.pendingInvoiceInterval.toString()
                 it[this.latestInvoiceId] = entity.latestInvoiceId
             }
         }
@@ -45,6 +43,7 @@ class SubscriptionDal(db: Database) : AntaeusDal<Subscription>(db) {
     override fun fetch(id: Int): Subscription? {
         return transaction(db) {
             SubscriptionTable
+                .innerJoin(PlanTable)
                 .innerJoin(SubscriptionStatusTable)
                 .select { SubscriptionTable.id.eq(id) }
                 .firstOrNull()
@@ -55,6 +54,7 @@ class SubscriptionDal(db: Database) : AntaeusDal<Subscription>(db) {
     override fun fetchAll(): List<Subscription> {
         return transaction(db) {
             SubscriptionTable
+                .innerJoin(PlanTable)
                 .innerJoin(SubscriptionStatusTable)
                 .selectAll()
                 .map { it.toSubscription() }
@@ -68,4 +68,5 @@ class SubscriptionDal(db: Database) : AntaeusDal<Subscription>(db) {
     fun createStatus(status: SubscriptionStatuses, description: String): SubscriptionStatus? {
         return this.subscriptionStatusDal.create(SubscriptionStatus(status = status, description = description))
     }
+
 }

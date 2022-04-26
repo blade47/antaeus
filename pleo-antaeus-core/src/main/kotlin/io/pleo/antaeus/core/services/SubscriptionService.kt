@@ -15,7 +15,6 @@ import java.time.LocalDate
 
 class SubscriptionService(private val dal: SubscriptionDal) {
 
-    private val invoiceIntervalDefault = InvoiceInterval.MONTH
     private val logger = KotlinLogging.logger {}
 
     fun fetchAll(): List<Subscription> {
@@ -30,12 +29,11 @@ class SubscriptionService(private val dal: SubscriptionDal) {
         val latestInvoice: Invoice? = this.getPendingInvoice(customer)
         return dal.create( Subscription(
                 customerId = customer.id,
-                planId = to.id,
+                plan = to,
                 status = dal.getStatus(SubscriptionStatuses.INCOMPLETE) ?: run { throw SubscriptionStatusNotFoundException(SubscriptionStatuses.INCOMPLETE.toString()) },
                 cancelAtPeriodEnds = false,
                 currentPeriodStarts = LocalDate.now(),
-                currentPeriodEnds = LocalDate.now().plusDays(this.invoiceIntervalDefault.days),
-                pendingInvoiceInterval = this.invoiceIntervalDefault,
+                currentPeriodEnds = LocalDate.now().plusDays(to.invoiceInterval.days),
                 latestInvoiceId = latestInvoice?.id)
         ) ?: run {
             logger.error { "Failed to subscribe customer ${customer.id} to ${to.id}" }
@@ -46,7 +44,7 @@ class SubscriptionService(private val dal: SubscriptionDal) {
     fun renew(subscription: Subscription): Boolean {
         logger.trace { "Renewing subscription ${subscription.id}" }
         subscription.currentPeriodStarts = subscription.currentPeriodEnds
-        subscription.currentPeriodEnds = subscription.currentPeriodEnds.plusDays(this.invoiceIntervalDefault.days)
+        subscription.currentPeriodEnds = subscription.currentPeriodEnds.plusDays(subscription.plan.invoiceInterval.days)
         if (subscription.status.status != SubscriptionStatuses.ACTIVE) subscription.status = this.getStatus(SubscriptionStatuses.ACTIVE)
         return this.update(subscription)
     }

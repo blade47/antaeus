@@ -16,6 +16,7 @@ class PlanDal(db: Database) : AntaeusDal<Plan>(db) {
                 it[this.description] = entity.description.toString()
                 it[this.value] = entity.amount.value
                 it[this.currency] = entity.amount.currency.toString()
+                it[this.invoiceInterval] = entity.invoiceInterval.toString()
             } get PlanTable.id
         }
         return this.fetch(id)

@@ -233,10 +233,9 @@ class BillingService(
 
     private fun createNewInvoice(subscription: Subscription) : Invoice {
         logger.info { "Creating new invoice for subscription ${subscription.id}." }
-        val plan: Plan = this.planService.fetch(subscription.planId)
         val to: Customer = this.customerService.fetch(subscription.customerId)
-        return if (plan.amount.currency == to.currency) createInvoice(ofAmount = plan.amount, to)
-        else createInvoice( ofAmount = this.convertCurrency(plan.amount, to.currency), to)
+        return if (subscription.plan.amount.currency == to.currency) createInvoice(ofAmount = subscription.plan.amount, to)
+        else createInvoice( ofAmount = this.convertCurrency(subscription.plan.amount, to.currency), to)
     }
 
     private fun createInvoice(ofAmount: Money, to: Customer) : Invoice {

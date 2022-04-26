@@ -105,15 +105,23 @@ class AntaeusRest(
                         }
                     }
 
-                    path("startBillingTask") {
+                    path("executeBillingRoutine") {
                         // URL: /rest/v1/startBillingTask
                         get {
-                            billingService.startBillingTask()
-                            it.json({ "status" to "started" })
+                            billingService.billingRoutine()
+                            it.json({ "status" to true })
                         }
                     }
 
-                    path("stopBillingTask") {
+                    path("startBillingRoutineTask") {
+                        // URL: /rest/v1/startBillingTask
+                        get {
+                            billingService.startBillingTask()
+                            it.json({ "status" to true })
+                        }
+                    }
+
+                    path("stopBillingRoutineTask") {
                         // URL: /rest/v1/stopBillingTask
                         get {
                             billingService.stopBillingTask()
@@ -121,7 +129,7 @@ class AntaeusRest(
                         }
                     }
 
-                    path("forceStopBillingTask") {
+                    path("forceStopBillingRoutineTask") {
                         // URL: /rest/v1/forceStopBillingTask
                         get {
                             if (billingService.isBillingTaskRunning()) billingService.forceStopBillingTask()
@@ -129,7 +137,7 @@ class AntaeusRest(
                         }
                     }
 
-                    path("isBillingTaskRunning") {
+                    path("isBillingRoutineTaskRunning") {
                         // URL: /rest/v1/isBillingTaskRunning
                         get {
                             it.json({ "status" to billingService.isBillingTaskRunning() })

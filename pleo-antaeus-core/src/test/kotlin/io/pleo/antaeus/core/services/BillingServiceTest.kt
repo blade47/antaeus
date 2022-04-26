@@ -69,7 +69,8 @@ class BillingServiceTest(db: Database){
             amount = amount ?: run { Money(
                 value = BigDecimal(15.0),
                 currency = Currency.USD)
-            })
+            },
+            invoiceInterval = InvoiceInterval.MONTH)
         )
     }
 
@@ -88,13 +89,15 @@ class BillingServiceTest(db: Database){
             description = PlanDescription.STANDARD,
             amount = Money(
                 value = BigDecimal(15.0),
-                currency = Currency.USD))
+                currency = Currency.USD),
+                invoiceInterval = InvoiceInterval.MONTH)
         )
         planService.create( Plan(
             description = PlanDescription.PREMIUM,
             amount = Money(
                 value = BigDecimal(450.0),
-                currency = Currency.USD))
+                currency = Currency.USD),
+            invoiceInterval = InvoiceInterval.MONTH)
         )
 
         customers.forEach { customer ->

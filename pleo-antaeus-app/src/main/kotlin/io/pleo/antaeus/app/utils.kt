@@ -24,13 +24,15 @@ internal fun setupInitialData(invoiceDal: InvoiceDal, planDal: PlanDal, customer
             description = PlanDescription.STANDARD,
             amount = Money(
                     value = BigDecimal(15.0),
-                    currency = Currency.USD))
+                    currency = Currency.USD),
+            invoiceInterval = InvoiceInterval.MONTH)
     )
     planDal.create( Plan(
             description = PlanDescription.PREMIUM,
             amount = Money(
                     value = BigDecimal(450.0),
-                    currency = Currency.USD))
+                    currency = Currency.USD),
+            invoiceInterval = InvoiceInterval.MONTH)
     )
 
     customers.forEach { customer ->

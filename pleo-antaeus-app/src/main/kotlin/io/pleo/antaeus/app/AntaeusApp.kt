@@ -7,6 +7,7 @@
 
 package io.pleo.antaeus.app
 
+import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.services.*
 import io.pleo.antaeus.data.*
 import io.pleo.antaeus.rest.AntaeusRest
@@ -72,7 +73,9 @@ fun main() {
         subscriptionService = subscriptionService,
         planService = planService
     )
+
     billingService.setupInitialData()
+    billingService.startBillingTask()
 
     // Create REST web service
     AntaeusRest(

@@ -22,13 +22,6 @@ class EmbeddedDb : BeforeAllCallback, AfterEachCallback, ParameterResolver {
                         SchemaUtils.create(*tables)
                     }
                 }
-
-//        if (context.root.getStore(ExtensionContext.Namespace.create(EmbeddedDb::class.java))["db", Database::class.java] == null) {
-//            context.root.getStore(ExtensionContext.Namespace.create(EmbeddedDb::class.java)).put("db", db)
-//        } else {
-//            // this is never executed
-//            println("Found it, no need to store anything again!")
-//        }
     }
     override fun afterEach(context: ExtensionContext) {
         transaction {
