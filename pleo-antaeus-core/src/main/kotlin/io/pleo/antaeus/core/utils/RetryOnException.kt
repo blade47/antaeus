@@ -1,4 +1,4 @@
-package io.pleo.antaeus.core.exceptions
+package io.pleo.antaeus.core.utils
 
 /**
  * Encapsulates retry-on-exception operations
@@ -6,7 +6,8 @@ package io.pleo.antaeus.core.exceptions
 class RetryOnException
 
     constructor(private var numRetries: Int = DEFAULT_RETRIES,
-                private val timeToWaitMS: Long = DEFAULT_TIME_TO_WAIT_MS) {
+                private val timeToWaitMS: Long = DEFAULT_TIME_TO_WAIT_MS
+    ) {
     /**
      * shouldRetry
      * Returns true if a retry can be attempted.

@@ -5,14 +5,13 @@ import io.pleo.antaeus.core.external.CurrencyProvider
 import io.pleo.antaeus.core.external.NotificationProvider
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.core.services.task.TimerTask
+import io.pleo.antaeus.core.utils.RetryOnException
 import io.pleo.antaeus.models.*
 import mu.KotlinLogging
-import java.time.Duration
 import java.time.LocalDate
 import java.time.Period
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.milliseconds
 
 class BillingService(
     private val paymentProvider: PaymentProvider,
