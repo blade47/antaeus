@@ -137,4 +137,4 @@ As previously mentioned, the unit test coverage is also related to the TimerTask
 The database data access layer classes have beed refactored since the AntaeusDal class was becoming a blob.
 
 ###### Rest APIs extension
-New rest APIs endpoint were added in order to allow starting, stopping and c
+New rest APIs endpoint were added in order to allow starting, stopping and checking the status of the task.
