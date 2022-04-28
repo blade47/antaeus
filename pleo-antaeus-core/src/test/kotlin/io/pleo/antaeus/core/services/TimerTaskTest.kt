@@ -2,6 +2,7 @@ package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.core.services.task.TimerTask
 import kotlinx.coroutines.delay
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -57,6 +58,7 @@ class TimerTaskTest() {
     }
 
     @Test
+    @Disabled
     fun `delay between calls`() {
         val deltas = mutableListOf<Duration>()
         var startedAt: Long? = null
@@ -81,6 +83,7 @@ class TimerTaskTest() {
     }
 
     @Test
+    @Disabled
     fun `delay between calls with internal function heavier than repeating time`() {
         val deltas = mutableListOf<Duration>()
         var startedAt: Long? = null

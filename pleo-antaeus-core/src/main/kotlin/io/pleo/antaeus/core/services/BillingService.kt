@@ -46,15 +46,18 @@ class BillingService(
 
     // To run twice a day so if we have network problems we cover it
     fun billingRoutine(currentDate: LocalDate? = null) {
+        logger.trace { "Billing routine started..." }
         val subscriptions = this.subscriptionService.fetchAll()
         val today = currentDate ?: LocalDate.now()
         subscriptions.forEach { subscription ->
             when (subscription.status.status) {
                 SubscriptionStatuses.ACTIVE -> {
+                    logger.trace { "Active subscription processing..." }
                     if (subscription.currentPeriodEnds.isEqual(today) || subscription.currentPeriodEnds.isBefore(today)) {
                         if ( ! subscription.cancelAtPeriodEnds)
                             if ( this.invoiceSubscription(subscription) ) {
                                 subscriptionService.renew(subscription)
+                                logger.info { "Subscription ${subscription.id} renewed." }
                                 notificationProvider.send(
                                     Notification(
                                         subscription.customerId,
@@ -62,9 +65,19 @@ class BillingService(
                                     )
                                 )
                             }
-                            else this.subscriptionService.pastDue(subscription)
+                            else {
+                                this.subscriptionService.pastDue(subscription)
+                                logger.info { "Subscription ${subscription.id} past due." }
+                                notificationProvider.send(
+                                    Notification(
+                                        subscription.customerId,
+                                        "Your subscription was renewed but the payment failed, please ensure to have enough money for the subscription."
+                                    )
+                                )
+                            }
                         else {
                             this.subscriptionService.cancel(subscription)
+                            logger.info { "Subscription ${subscription.id} canceled." }
                             notificationProvider.send(
                                 Notification(
                                     subscription.customerId,
@@ -75,9 +88,11 @@ class BillingService(
                     }
                 }
                 SubscriptionStatuses.INCOMPLETE -> {
+                    logger.trace { "Incomplete subscription processing..." }
                     if (Period.between(subscription.created, today).days <= 3) {
                         if (this.invoiceSubscription(subscription)) {
                             this.subscriptionService.activate(subscription)
+                            logger.info { "Subscription ${subscription.id} activated." }
                             notificationProvider.send(
                                 Notification(
                                     subscription.customerId,
@@ -87,13 +102,14 @@ class BillingService(
                         }
                     }
                     else {
+                        this.subscriptionService.expire(subscription)
+                        logger.info { "Subscription ${subscription.id} expired." }
                         notificationProvider.send(
                             Notification(
                                 subscription.customerId,
                                 "We were not able to charge your first invoice for activating the subscription, we are therefore cancelling it."
                             )
                         )
-                        this.subscriptionService.expire(subscription)
                     }
                 }
                 SubscriptionStatuses.CANCELED -> {
@@ -103,9 +119,11 @@ class BillingService(
                     // TODO: 24/04/22 For future developments
                 }
                 SubscriptionStatuses.PAST_DUE -> {
+                    logger.trace { "Past due subscription processing..." }
                     if (Period.between(subscription.currentPeriodEnds, today).days <= 3) {
                         if ( this.invoiceSubscription(subscription) ) {
                             subscriptionService.renew(subscription)
+                            logger.info { "Subscription ${subscription.id} renewed." }
                             notificationProvider.send(
                                 Notification(
                                     subscription.customerId,
@@ -115,6 +133,7 @@ class BillingService(
                         }
                     } else {
                         this.subscriptionService.cancel(subscription)
+                        logger.info { "Subscription ${subscription.id} canceled." }
                         notificationProvider.send(
                             Notification(
                                 subscription.customerId,
